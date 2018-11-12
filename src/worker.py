@@ -8,8 +8,9 @@ import json
 import os
 
 model = ResNet50(weights='imagenet')
+
 bucket = boto3.resource('s3').Bucket('ml-gpu-example')
-queue = boto3.resource('sqs').get_queue_by_name(QueueName='example-gpu-queue')
+queue = boto3.resource('sqs', 'eu-central-1').get_queue_by_name(QueueName='example-gpu-queue')
 
 def processImage(file):
   bucket.download_file(file, file)
