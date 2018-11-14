@@ -4,6 +4,4 @@ RUN pip install boto3
 
 WORKDIR /app
 COPY src/worker.py ./
-COPY images/select-ami.jpeg ./select-ami.jpeg
-
 CMD ["python","worker.py"]

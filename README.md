@@ -1,4 +1,17 @@
+# Architecture
 
+This architecture allows to scale machine learning prediction infrastructure using AWS + docker. It contains following parts:
+* S3 bucket - a bucket to upload images to be processed
+* SQS queue - a queue to send messages from S3 to gpu  
+* ECS cluster - a cluster which groups container instances
+* Docker image - a docker image (able to use GPU) containing an image processing worker code and available from ECR
+* ECS task definition - a task definition to run the worker docker image  
+* EC2 instance - a GPU instance that runs an ECS task
+* Autoscaling group - an EC2 autoscaling group that manages EC2 instance number using autoscaling policies
+* Cloudwatch alert - an alert configured to invoke autoscaling policies based on number of messages in SQS queue
+* Custom AMI - a customized AMI to run nvidia-docker
+
+![Architecture](images/architecture-diagram.jpg)
 
 # Steps
 ## Create SQS queue
@@ -19,7 +32,7 @@ Setup S3 Events to send messages to the created SQS queue on put objects:
 
 ![Create SQS](images/setup-s3-notifications.jpg)
 
-## 1. Create custom nvidia-docker2 AMI
+## Create custom nvidia-docker2 AMI
 1. From EC2 console select and launch Deep learning base AMI (version 12):
 
 ![Select AMI](images/select-ami.jpeg)
@@ -52,12 +65,12 @@ Setup S3 Events to send messages to the created SQS queue on put objects:
     ```sudo docker rmi $(sudo docker images -q)```
 9. Create a new AMI from the running instance.
 
-## 2. Setup docker repository 
+## Setup docker repository 
 You can skip this section, if you already have a docker repository or use docker image from a public repo.
 
 Select ECS from AWS console and create repository for your docker image.
 
-## 3. Create docker image
+## Create docker image
 
 Build a docker image which uses GPU for tensorflow.
 ```
@@ -67,8 +80,6 @@ RUN pip install boto3
 
 WORKDIR /app
 COPY src/worker.py ./
-COPY images/select-ami.jpeg ./select-ami.jpeg
-
 CMD ["python","worker.py"]
 ```
 Add code to read messages from SQS queue and process images:
@@ -108,13 +119,22 @@ def startWorker():
 startWorker()
 
 ```
-Build docker image and push it to the docker repository
+Build docker image and push it to the docker repository:
+
 ```
+#!/bin/bash
+
+IMAGE_NAME=ml-gpu-example
+REGISTRY_URL=XXXXXXXXXXXX.dkr.ecr.eu-central-1.amazonaws.com
+
+docker build -t $IMAGE_NAME . 
+docker tag $IMAGE_NAME $REGISTRY_URL/$IMAGE_NAME
+docker push $REGISTRY_URL/$IMAGE_NAME
 ```
 
-## 5. Setup ECS task
+## Setup ECS task
 
-### 5.1  Create role for the ECS task
+### 1  Create role for the ECS task
 Select trusted entity type  Elastic Container Service Task in the first step
 
 ![Role ](images/create-task-role-1.jpg)
@@ -217,3 +237,6 @@ The example policy sets the scaling group size to 1 instance when there is at le
 
 ![Create autoscaling group 2](images/create-autoscaling-2.jpg)
 
+## Update Cloudwatch alarms to trigger downscaling
+The autoscaling policy ceated earlier is invoked by the created Cloudwatch alarm only when it's value is in OK state (>0). We need to invoke the policy when the alarm is in ALARM state (is 0). We needd to add another autoscaling action when the alarm is in ALARM state:
+![Update cloudwatch alarm](images/update-cloudwatch-alarm.jpg)
