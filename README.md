@@ -1,5 +1,5 @@
 # Scaling GPU processing on AWS using docker
-GPU instance time is an expensive resource and there is a need to scale it when loads are changing. [Docker](https://www.docker.com/products/docker-engine) facilitates a deployment of application code. [nvidia-docker](https://github.com/NVIDIA/nvidia-docker) must be used in order to use AWS GPU instances. 
+GPU instance time required to run machine learning tasks is an expensive resource and there is a need to scale it when loads are changing. [Docker](https://www.docker.com/products/docker-engine) facilitates a deployment of application code. [nvidia-docker](https://github.com/NVIDIA/nvidia-docker) enables docker to use GPU in containers. 
 
 This guide describes a solution which can scale up machine learning prediction capacity when there is a load and reduce it to zero when there is none and the required steps to setup required infrastructure.
 
@@ -17,9 +17,9 @@ It consists of following parts:
 
 ![Architecture](images/architecture-diagram.jpg)
 
-Images to be processed are uploaded to S3 bucket. The S3 bucket is configured to notify an SQS queue on new images uploaded. A Cloudwatch alert reads a message number in the SQS queue and launches autoscaling actions of an autoscaling policy when the number of messages is changed. The autoscaling group launches or terminates EC2 instances according step scaling policies. Each EC2 instance uses a customized AMI which has Nvidia CUDA drivers and nvidia-docker and registers into a AWS ECS cluster.      
+Images to be processed are uploaded to S3 bucket. The S3 bucket is configured to notify an SQS queue on new images uploaded. A Cloudwatch alert reads a message number in the SQS queue and launches autoscaling actions of an autoscaling policy when the number of messages is changed. The autoscaling group launches or terminates EC2 instances according step scaling policies. Each EC2 instance uses a customized AMI which has Nvidia CUDA drivers and nvidia-docker and registers into a AWS ECS cluster. An ECS task from a defintion in the cluster is launched - a docker container with the application code is loaded from ECR registry and started. The application reads  messages from the queue and processes the images from S3 until the queue is empty and the autoscaling group stops all EC2 instances.
 
-## Setup steps
+## Configuration
 ### Create SQS queue
 Enter queue name and leave default settings
 
@@ -208,8 +208,17 @@ Leave autoscaling as is:
 ![Set autoscaling](images/create-ecs-service-4.jpg)
 
 ### Create role for EC2
+Create a role for EC2 instances to access various services required for ECS. 
 
+Select **Select Container Service** as a service and as a use case: 
 
+![Create ECS service role 1](images/create-ecs-role-1.jpg) 
+
+Use default supplied policy **AmazonEC2ContainerServiceRole**:
+
+![Create ECS service role 2](images/create-ecs-role-2.jpg) 
+
+Add name for the role and save.
 
 ### Create launch template
 Set properities:
@@ -239,7 +248,7 @@ Set name and select subnets for EC2 instances and go to the next step: Configure
 
 Use a step scaling policy to set size of the autoscaling group. One policy is enough if an instance number is set, not increased. Select the Cloudwatch alarm created eralier and define steps for setting number of instances based on number of messages in the queue.
 
-The example policy sets the scaling group size to 1 instance when there is at least 1 message in the message queue and to 2 when the number of messages in the queue is over 100. All instances are removed when there are no messages in the queue. 
+The example policy sets the scaling group size to 1 instance when there is at least 1 message in the message queue and to 2 when the number of messages in the queue is over 100. All instances are removed when there are no messages in the queue.
 
 ![Create autoscaling group 2](images/create-autoscaling-2.jpg)
 
