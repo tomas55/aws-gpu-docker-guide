@@ -43,15 +43,15 @@ Setup S3 Events to send messages to the created SQS queue on put objects:
 
 ![Select AMI](images/select-ami.jpeg)
 
-2. Select gpu instance type (p2.xlarge):
+2. Select GPU compute instance type (p2.xlarge):
 
 ![Select instance](images/select-instance-type.jpeg)
 
 3. Configure additional settings and launch. Select ssh key or create a new one when asked.
 4. Connect to the launched as ec2-user instance using SSH.
-5. Base deep learning has Cuda drivers and nvidia-docker2 installed, bus has no ecs agent, therefore it has to be installed by executing
+5. Base deep learning has Cuda drivers and nvidia-docker2 installed, bus has no ECS agent, therefore it has to be installed by executing
 ```sudo yum install -y ecs-init```
-6. To verify nvidia docker working run: 
+6. To verify nvidia-docker working, run: 
     
     ``` CUDA_VERSION=$(cat /usr/local/cuda/version.txt | awk '{ print $3 }' | cut -f1-2 -d".")```  
     
