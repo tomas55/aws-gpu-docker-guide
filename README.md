@@ -1,7 +1,7 @@
 # Scaling GPU processing on AWS using docker
 GPU instance time required to run machine learning tasks is an expensive resource and there is a need to scale it when loads are changing. [Docker](https://www.docker.com/products/docker-engine) facilitates a deployment of application code. [nvidia-docker](https://github.com/NVIDIA/nvidia-docker) enables docker to use GPU in containers. 
 
-This guide describes a solution which can scale up machine learning prediction capacity when there is a load and reduce it to zero when there is none and the required steps to setup required infrastructure.
+This guide describes a solution which can scale up machine learning prediction capacity when there is a load and reduce it to zero when there is none, and the required steps to setup required infrastructure.
 
 ## Solution
 It consists of following parts:
@@ -17,7 +17,7 @@ It consists of following parts:
 
 ![Architecture](images/architecture-diagram.jpg)
 
-Images to be processed are uploaded to S3 bucket. The S3 bucket is configured to notify an SQS queue on new images uploaded. A Cloudwatch alert reads a message number in the SQS queue and launches autoscaling actions of an autoscaling policy when the number of messages is changed. The autoscaling group launches or terminates EC2 instances according step scaling policies. Each EC2 instance uses a customized AMI which has Nvidia CUDA drivers and nvidia-docker and registers into a AWS ECS cluster. An ECS task from a defintion in the cluster is launched - a docker container with the application code is loaded from ECR registry and started. The application reads  messages from the queue and processes the images from S3 until the queue is empty and the autoscaling group stops all EC2 instances.
+Images to be processed are uploaded to S3 bucket. The S3 bucket is configured to notify an SQS queue on new images uploaded. A Cloudwatch alert reads a message number in the SQS queue and launches autoscaling actions of an autoscaling policy when the number of messages is changed. The autoscaling group launches or terminates EC2 instances according step scaling policies. Each EC2 instance uses a customized AMI which has Nvidia CUDA drivers and nvidia-docker and registers into a AWS ECS cluster. An ECS task from a definition in the cluster is launched - a docker container with the application code is loaded from ECR registry and started. The application reads  messages from the queue and processes the images from S3 until the queue is empty and the autoscaling group stops all EC2 instances.
 
 ## Configuration
 ### Create SQS queue
@@ -49,7 +49,7 @@ Setup S3 Events to send messages to the created SQS queue on put objects:
 
 3. Configure additional settings and launch. Select ssh key or create a new one when asked.
 4. Connect to the launched as ec2-user instance using SSH.
-5. Base deep learning has cuda drivers and nvidia-docker2 installed, bus has no ecs agent, therefore it has to be installed by executing
+5. Base deep learning has Cuda drivers and nvidia-docker2 installed, bus has no ecs agent, therefore it has to be installed by executing
 ```sudo yum install -y ecs-init```
 6. To verify nvidia docker working run: 
     
@@ -78,7 +78,7 @@ Select ECS from AWS console and create repository for your docker image.
 
 ### Create docker image
 
-Build a docker image which uses GPU for tensorflow.
+Build a docker image which uses GPU for Tensorflow.
 ```
 FROM tensorflow/tensorflow:1.11.0-gpu-py3
 
@@ -172,7 +172,7 @@ Select Edit container and set following fields:
 ![Task definition 1](images/create-task-dfn-2.jpg)
 
 #### 3. Create new ECS cluster
-For simplicity resons we will create a new empty cluster which will use default VPC
+For simplicity reasons we will create a new empty cluster which will use default VPC
 
 ![ECS cluster 1](images/create-ecs-cluster.jpg)
 
@@ -189,7 +189,7 @@ For simplicity resons we will create a new empty cluster which will use default 
 
 Set following properties:
 * Launch type - EC2
-* Task Defintion - your task defintion created earlier
+* Task Definition - your task definition created earlier
 * Cluster - your cluster
 * Service name - your service name
 * Service type - DAEMON
@@ -221,7 +221,7 @@ Use default supplied policy **AmazonEC2ContainerServiceRole**:
 Add name for the role and save.
 
 ### Create launch template
-Set properities:
+Set properties:
 * Launch template name: ml-gpu-example
 * AMI ID: select your created AMI
 * Instance type: p2.xlarge
@@ -240,18 +240,18 @@ Select metric *ApproximateNumberOfMessagesVisible* for SQS queue you have create
 
 ### Create EC2 Autoscaling group
 
-Select autoscaling groups from EC2 console and click **Create Auto Scaling Group**. Select option to create an autoscaling group from Launch Template and select a template created earlier (gpu-example-template).
+Select autoscaling groups from EC2 console and click **Create Auto Scaling Group**. Select the option to create an autoscaling group from Launch Template and select the template created earlier (gpu-example-template).
 
 ![Create autoscaling group 1](images/create-autoscaling-1.jpg)
 
 Set name and select subnets for EC2 instances and go to the next step: Configure scaling policies.
 
-Use a step scaling policy to set size of the autoscaling group. One policy is enough if an instance number is set, not increased. Select the Cloudwatch alarm created eralier and define steps for setting number of instances based on number of messages in the queue.
+Use a step scaling policy to set size of the autoscaling group. One policy is enough if an instance number is set, not increased. Select the Cloudwatch alarm created earlier and define steps for setting number of instances based on number of messages in the queue.
 
 The example policy sets the scaling group size to 1 instance when there is at least 1 message in the message queue and to 2 when the number of messages in the queue is over 100. All instances are removed when there are no messages in the queue.
 
 ![Create autoscaling group 2](images/create-autoscaling-2.jpg)
 
 ### Update Cloudwatch alarms to trigger downscaling
-The autoscaling policy ceated earlier is invoked by the created Cloudwatch alarm only when it's value is in OK state (>0). We need to invoke the policy when the alarm is in ALARM state (is 0). We needd to add another autoscaling action when the alarm is in ALARM state:
+The autoscaling policy created earlier is invoked by the Cloudwatch alarm only when it's value is in OK state (>0). We need to invoke the policy when the alarm is in ALARM state (is 0). We need to add another autoscaling action when the alarm is in ALARM state:
 ![Update cloudwatch alarm](images/update-cloudwatch-alarm.jpg)
